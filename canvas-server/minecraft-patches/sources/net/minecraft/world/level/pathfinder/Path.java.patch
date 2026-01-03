@@ -1,0 +1,26 @@
+--- a/net/minecraft/world/level/pathfinder/Path.java
++++ b/net/minecraft/world/level/pathfinder/Path.java
+@@ -11,14 +_,14 @@
+ import net.minecraft.world.phys.Vec3;
+ import org.jspecify.annotations.Nullable;
+ 
+-public final class Path {
++public class Path { // Canvas - non-final
+     public static final StreamCodec<FriendlyByteBuf, Path> STREAM_CODEC = StreamCodec.of((buffer, value) -> value.writeToStream(buffer), Path::createFromStream);
+     public final List<Node> nodes;
+     private Path.@Nullable DebugData debugData;
+-    private int nextNodeIndex;
+-    private final BlockPos target;
+-    private final float distToTarget;
+-    private final boolean reached;
++    protected int nextNodeIndex; // Canvas - protected
++    protected BlockPos target; // Canvas - non-final, protected
++    protected float distToTarget; // Canvas - non-final, protected
++    protected boolean reached; // Canvas - non-final, protected
++
++    public boolean isProcessed() { // Canvas - async pathfinding
++        return true;
++    }
+ 
+     public Path(List<Node> nodes, BlockPos target, boolean reached) {
+         this.nodes = nodes;

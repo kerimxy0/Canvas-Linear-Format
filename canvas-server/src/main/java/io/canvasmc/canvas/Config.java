@@ -12,6 +12,7 @@ import io.canvasmc.canvas.configuration.validator.numeric.PositiveNumericValueVa
 import io.canvasmc.canvas.configuration.validator.numeric.RangeValidator;
 import io.canvasmc.canvas.configuration.writer.Comment;
 import io.canvasmc.canvas.entity.EntityCollisionMode;
+import io.canvasmc.canvas.region.RegionFileFormat;
 import io.canvasmc.canvas.simd.SIMDDetection;
 import io.canvasmc.canvas.util.virtual.VirtualThreadUtils;
 import io.papermc.paper.adventure.PaperAdventure;
@@ -39,15 +40,16 @@ import org.jetbrains.annotations.Unmodifiable;
 public class Config {
     public static boolean ENABLE_FASTER_RANDOM = true;
     public static final ComponentLogger LOGGER = ComponentLogger.logger("Canvas");
-    // Note: this field should never be used during POST, use 'context.configuration()' instead
+    // Note: this field should never be used during POST, use
+    // 'context.configuration()' instead
     public static Config INSTANCE;
     public static final Consumer<String> GLOBAL_BROADCAST = (msg) -> {
         Component component = RegionizedTpsBar.gradient("[CanvasMC] ",
-            s -> s.decorate(TextDecoration.BOLD),
-            TextColor.color(0x357CEF), TextColor.color(0xF21AF4));
+                s -> s.decorate(TextDecoration.BOLD),
+                TextColor.color(0x357CEF), TextColor.color(0xF21AF4));
 
         Component text = Component.text(msg)
-            .decoration(TextDecoration.BOLD, false);
+                .decoration(TextDecoration.BOLD, false);
 
         Component merged = component.append(text);
         LOGGER.info(text);
@@ -67,7 +69,7 @@ public class Config {
     static {
         reload();
         // preload parallel search radius iteration early
-        //noinspection ResultOfMethodCallIgnored
+        // noinspection ResultOfMethodCallIgnored
         ParallelSearchRadiusIteration.getSearchIteration(MoonriseConstants.MAX_VIEW_DISTANCE);
     }
 
@@ -75,54 +77,61 @@ public class Config {
         GLOBAL_BROADCAST.accept("Instantiating Canvas configuration");
         long startNanos = System.nanoTime();
         INSTANCE = ConfigurationManager.register(Config.class, Config::buildGlobal).getConfig();
-        GLOBAL_BROADCAST.accept("Finished Canvas config init in " + TimeUnit.MILLISECONDS.convert(Util.getNanos() - startNanos, TimeUnit.NANOSECONDS) + "ms");
+        GLOBAL_BROADCAST.accept("Finished Canvas config init in "
+                + TimeUnit.MILLISECONDS.convert(Util.getNanos() - startNanos, TimeUnit.NANOSECONDS) + "ms");
     }
 
-    private static @NotNull @Unmodifiable ConfigSerializer<Config> buildGlobal(Configuration config, Class<Config> configClass) {
+    private static @NotNull @Unmodifiable ConfigSerializer<Config> buildGlobal(Configuration config,
+            Class<Config> configClass) {
         return new AnnotationBasedJson5Serializer.Json5Builder<Config>()
-            .header("""
-                This is the global Canvas configuration file.
-                All configuration options here are made for vanilla-compatibility by default
-                If you have questions join our discord at https://canvasmc.io/discord
-                As a general rule of thumb, do NOT change a setting if
-                you don't know what it does! If you don't know, ask!
-                """)
-            .classOf(configClass)
-            .constructor(Config::new)
-            .post(context -> {
-                GLOBAL_BROADCAST.accept("Running post validation consumer");
-                VirtualThreadUtils.init();
+                .header("""
+                        This is the global Canvas configuration file.
+                        All configuration options here are made for vanilla-compatibility by default
+                        If you have questions join our discord at https://canvasmc.io/discord
+                        As a general rule of thumb, do NOT change a setting if
+                        you don't know what it does! If you don't know, ask!
+                        """)
+                .classOf(configClass)
+                .constructor(Config::new)
+                .post(context -> {
+                    GLOBAL_BROADCAST.accept("Running post validation consumer");
+                    VirtualThreadUtils.init();
 
-                if (isServerAccessible()) {
-                    for (final ServerPlayer player : MinecraftServer.getServer().getPlayerList().players) {
-                        // update all info with player, covers 1.8 combat config
-                        MinecraftServer.getServer().getPlayerList().sendAllPlayerInfo(player);
-                    }
-                } else {
-                    // SIMD
-                    try {
-                        SIMDDetection.isEnabled = SIMDDetection.canEnable(LOGGER);
-                    } catch (NoClassDefFoundError | Exception ignored) {
-                        ignored.printStackTrace();
-                    }
-
-                    if (SIMDDetection.isEnabled) {
-                        LOGGER.info("SIMD operations detected as functional. Will replace some operations with faster versions.");
+                    if (isServerAccessible()) {
+                        for (final ServerPlayer player : MinecraftServer.getServer().getPlayerList().players) {
+                            // update all info with player, covers 1.8 combat config
+                            MinecraftServer.getServer().getPlayerList().sendAllPlayerInfo(player);
+                        }
                     } else {
-                        LOGGER.warn("SIMD operations are available for your server, but are not configured!");
-                        LOGGER.warn("To enable additional optimizations, add \"--add-modules=jdk.incubator.vector\" to your startup flags, BEFORE the \"-jar\".");
-                        LOGGER.warn("If you have already added this flag, then SIMD operations are not supported on your JVM or CPU.");
-                        LOGGER.warn("Debug: Java: " + System.getProperty("java.version") + ", test run: " + SIMDDetection.testRun);
-                    }
+                        // SIMD
+                        try {
+                            SIMDDetection.isEnabled = SIMDDetection.canEnable(LOGGER);
+                        } catch (NoClassDefFoundError | Exception ignored) {
+                            ignored.printStackTrace();
+                        }
 
-                    try {
-                        RandomGeneratorFactory.of("Xoroshiro128PlusPlus");
-                    } catch (Throwable throwable) {
-                        LOGGER.error("Canvas' faster random impl is not supported by your VM, falling back to legacy random");
-                        Config.ENABLE_FASTER_RANDOM = false;
+                        if (SIMDDetection.isEnabled) {
+                            LOGGER.info(
+                                    "SIMD operations detected as functional. Will replace some operations with faster versions.");
+                        } else {
+                            LOGGER.warn("SIMD operations are available for your server, but are not configured!");
+                            LOGGER.warn(
+                                    "To enable additional optimizations, add \"--add-modules=jdk.incubator.vector\" to your startup flags, BEFORE the \"-jar\".");
+                            LOGGER.warn(
+                                    "If you have already added this flag, then SIMD operations are not supported on your JVM or CPU.");
+                            LOGGER.warn("Debug: Java: " + System.getProperty("java.version") + ", test run: "
+                                    + SIMDDetection.testRun);
+                        }
+
+                        try {
+                            RandomGeneratorFactory.of("Xoroshiro128PlusPlus");
+                        } catch (Throwable throwable) {
+                            LOGGER.error(
+                                    "Canvas' faster random impl is not supported by your VM, falling back to legacy random");
+                            Config.ENABLE_FASTER_RANDOM = false;
+                        }
                     }
-                }
-            }).build();
+                }).build();
     }
 
     /* START CONFIGURATION */
@@ -131,16 +140,16 @@ public class Config {
 
     public static class Scheduler {
         @Comment({
-            "The maximum amount of time, in milliseconds, a thread will delay the execution of a scheduled task",
-            "before allowing other threads to steal it for execution.",
-            "Note: A smaller value reduces task start delays but increases potential task stealing between threads"
+                "The maximum amount of time, in milliseconds, a thread will delay the execution of a scheduled task",
+                "before allowing other threads to steal it for execution.",
+                "Note: A smaller value reduces task start delays but increases potential task stealing between threads"
         })
         public long stealThresholdMillis = 3L;
 
         @Comment({
-            "Buffer time (in milliseconds) before tick deadline to stop executing intermediate tasks.",
-            "Ensures runTick() can start on time, at the deadline. Higher = safer, lower = more work done.",
-            "Default: 0.1ms"
+                "Buffer time (in milliseconds) before tick deadline to stop executing intermediate tasks.",
+                "Ensures runTick() can start on time, at the deadline. Higher = safer, lower = more work done.",
+                "Default: 0.1ms"
         })
         public double runTasksBufferMillis = (double) 100_000 / 1_000_000;
     }
@@ -156,20 +165,20 @@ public class Config {
         public int threadPoolPriority = Thread.NORM_PRIORITY;
 
         @Comment({
-            "Determines the fluid post processing mode.",
-            "The worldgen processes creates a lot of unnecessary fluid post-processing tasks,",
-            "which can overload the server thread and cause stutters.",
-            "There are 3 accepted values",
-            " - VANILLA - just normal vanilla, no changes",
-            " - DISABLED - disables fluid post processing completely",
-            " - FILTERED - applies a rough filter to filter out fluids that are definitely not going to flow"
+                "Determines the fluid post processing mode.",
+                "The worldgen processes creates a lot of unnecessary fluid post-processing tasks,",
+                "which can overload the server thread and cause stutters.",
+                "There are 3 accepted values",
+                " - VANILLA - just normal vanilla, no changes",
+                " - DISABLED - disables fluid post processing completely",
+                " - FILTERED - applies a rough filter to filter out fluids that are definitely not going to flow"
         })
         public FluidPostProcessingMode fluidPostProcessingMode = FluidPostProcessingMode.VANILLA;
 
         @Comment({
-            "Whether to turn fluid postprocessing into scheduled tick",
-            "Fluid post-processing is very expensive when loading in new chunks, and this can affect",
-            "MSPT significantly. This option delays fluid post-processing to scheduled tick to hopefully mitigate this issue."
+                "Whether to turn fluid postprocessing into scheduled tick",
+                "Fluid post-processing is very expensive when loading in new chunks, and this can affect",
+                "MSPT significantly. This option delays fluid post-processing to scheduled tick to hopefully mitigate this issue."
         })
         public boolean fluidPostProcessingToScheduledTick = false;
 
@@ -193,16 +202,16 @@ public class Config {
 
         public static class Structures {
             @Comment({
-                "Whether to use an alternative strategy to make structure layouts generate slightly faster than",
-                "the default optimization the 'optimizeStructureGen' option has for template pool weights. This alternative strategy works by",
-                "changing the list of pieces that structures collect from the template pool to not have duplicate entries.",
-                "",
-                "This will not break the structure generation, but it will make the structure layout different than",
-                "if this config was off (breaking vanilla seed parity). The cost of speed may be worth it in large",
-                "servers where many structure or custom gen plugins are using very high weight values in their template pools.",
-                "",
-                "Pros: Get a bit more performance from high weight Template Pool Structures.",
-                "Cons: Loses parity with vanilla seeds on the layout of the structure. (Structure layout is not broken, just different)"
+                    "Whether to use an alternative strategy to make structure layouts generate slightly faster than",
+                    "the default optimization the 'optimizeStructureGen' option has for template pool weights. This alternative strategy works by",
+                    "changing the list of pieces that structures collect from the template pool to not have duplicate entries.",
+                    "",
+                    "This will not break the structure generation, but it will make the structure layout different than",
+                    "if this config was off (breaking vanilla seed parity). The cost of speed may be worth it in large",
+                    "servers where many structure or custom gen plugins are using very high weight values in their template pools.",
+                    "",
+                    "Pros: Get a bit more performance from high weight Template Pool Structures.",
+                    "Cons: Loses parity with vanilla seeds on the layout of the structure. (Structure layout is not broken, just different)"
             })
             public boolean deduplicateShuffledTemplatePoolElementList = false;
 
@@ -215,8 +224,8 @@ public class Config {
 
     public static class Networking {
         @Comment({
-            "The ClientboundSetEntityMotionPacket can often cause high network (Netty) usage and consumes (on larger production servers)",
-            "up to 60% of your network usage. Filtering should have no side effects visually on the client. If you find any, report to Canvas"
+                "The ClientboundSetEntityMotionPacket can often cause high network (Netty) usage and consumes (on larger production servers)",
+                "up to 60% of your network usage. Filtering should have no side effects visually on the client. If you find any, report to Canvas"
         })
         public boolean filterClientboundSetEntityMotionPacket = false;
 
@@ -230,8 +239,8 @@ public class Config {
         public boolean hideFlamesOnEntitiesWithInvisibility = false;
 
         @Comment({
-            "Optimizes player information packet sending by splitting players",
-            "into buckets to be sent to spread out the list tick"
+                "Optimizes player information packet sending by splitting players",
+                "into buckets to be sent to spread out the list tick"
         })
         public boolean optimizePlayerListTicking = false;
 
@@ -292,15 +301,15 @@ public class Config {
     public boolean eggCanKnockback = false;
 
     @Comment({
-        "The entity collision mode for the server",
-        "Acceptable values:",
-        " - VANILLA - default, all entities have collisions",
-        " - ONLY_PUSHABLE_PLAYERS_LARGE - only players are pushable by entities, we search in a large radius(8 chunks)",
-        "        for colliding players. This is primarily used for if servers have very large entities via the scale attribute",
-        "        or custom entities plugin",
-        " - ONLY_PUSHABLE_PLAYERS_SMALL - only players are pushable by entities, we search in a small radius(2 chunks)",
-        "        for colliding players. This is used for if the server will have no large entities exceeding 2 chunks of width",
-        " - NO_COLLISIONS - all entities have no collisions"
+            "The entity collision mode for the server",
+            "Acceptable values:",
+            " - VANILLA - default, all entities have collisions",
+            " - ONLY_PUSHABLE_PLAYERS_LARGE - only players are pushable by entities, we search in a large radius(8 chunks)",
+            "        for colliding players. This is primarily used for if servers have very large entities via the scale attribute",
+            "        or custom entities plugin",
+            " - ONLY_PUSHABLE_PLAYERS_SMALL - only players are pushable by entities, we search in a small radius(2 chunks)",
+            "        for colliding players. This is used for if the server will have no large entities exceeding 2 chunks of width",
+            " - NO_COLLISIONS - all entities have no collisions"
     })
     public EntityCollisionMode entityCollisionMode = EntityCollisionMode.VANILLA;
 
@@ -309,145 +318,145 @@ public class Config {
 
     public static class Fixes {
         @Comment({
-            "Fixes MC-298464 - https://bugs.mojang.com/browse/MC/issues/MC-298464",
-            "Memory leak in hoglin farm due to CHANGED_DIMENSION entity removal"
+                "Fixes MC-298464 - https://bugs.mojang.com/browse/MC/issues/MC-298464",
+                "Memory leak in hoglin farm due to CHANGED_DIMENSION entity removal"
         })
         public boolean mc298464 = false; // TODO - fixed by Mojang, remove.
 
         @Comment({
-            "Fixes MC-223153 - https://bugs.mojang.com/browse/MC/issues/MC-223153",
-            "Block of Raw Copper uses stone sounds instead of copper sounds"
+                "Fixes MC-223153 - https://bugs.mojang.com/browse/MC/issues/MC-223153",
+                "Block of Raw Copper uses stone sounds instead of copper sounds"
         })
         public boolean mc223153 = false;
 
         @Comment({
-            "Fixes MC-200418 - https://bugs.mojang.com/browse/MC/issues/MC-200418",
-            "Cured baby zombie villagers stay as jockey variant"
+                "Fixes MC-200418 - https://bugs.mojang.com/browse/MC/issues/MC-200418",
+                "Cured baby zombie villagers stay as jockey variant"
         })
         // track this, was reopened in 1.21.11-pre2
         public boolean mc200418 = false;
 
         @Comment({
-            "Fixes MC-200418 - https://bugs.mojang.com/browse/MC/issues/MC-94054",
-            "Cave spiders spin around when walking"
+                "Fixes MC-200418 - https://bugs.mojang.com/browse/MC/issues/MC-94054",
+                "Cave spiders spin around when walking"
         })
         public boolean mc94054 = false;
 
         @Comment({
-            "Fixes MC-245394 - https://bugs.mojang.com/browse/MC/issues/MC-245394",
-            "The sounds of raid horns blaring aren't controlled by the correct sound slider"
+                "Fixes MC-245394 - https://bugs.mojang.com/browse/MC/issues/MC-245394",
+                "The sounds of raid horns blaring aren't controlled by the correct sound slider"
         })
         public boolean mc245394 = false;
 
         @Comment({
-            "Fixes MC-231743 - https://bugs.mojang.com/browse/MC/issues/MC-231743",
-            "minecraft.used:minecraft.POTTABLE_PLANT doesn't increase when placing plants into flower pots"
+                "Fixes MC-231743 - https://bugs.mojang.com/browse/MC/issues/MC-231743",
+                "minecraft.used:minecraft.POTTABLE_PLANT doesn't increase when placing plants into flower pots"
         })
         public boolean mc231743 = false;
 
         @Comment({
-            "Fixes MC-227337 - https://bugs.mojang.com/browse/MC/issues/MC-227337",
-            "When a shulker bullet hits an entity, the explodes sound is not played and particles are not produced"
+                "Fixes MC-227337 - https://bugs.mojang.com/browse/MC/issues/MC-227337",
+                "When a shulker bullet hits an entity, the explodes sound is not played and particles are not produced"
         })
         public boolean mc227337 = false;
 
         @Comment({
-            "Fixes MC-221257 - https://bugs.mojang.com/browse/MC/issues/MC-221257",
-            "Shulker bullets don't produce bubble particles when moving through water"
+                "Fixes MC-221257 - https://bugs.mojang.com/browse/MC/issues/MC-221257",
+                "Shulker bullets don't produce bubble particles when moving through water"
         })
         public boolean mc221257 = false;
 
         @Comment({
-            "Fixes MC-206922 - https://bugs.mojang.com/browse/MC/issues/MC-206922",
-            "Items dropped by entities that are killed by lightning instantly disappear"
+                "Fixes MC-206922 - https://bugs.mojang.com/browse/MC/issues/MC-206922",
+                "Items dropped by entities that are killed by lightning instantly disappear"
         })
         public boolean mc206922 = false;
 
         @Comment({
-            "Fixes MC-155509 - https://bugs.mojang.com/browse/MC/issues/MC-155509",
-            "Puffed pufferfish can hurt the player while dying"
+                "Fixes MC-155509 - https://bugs.mojang.com/browse/MC/issues/MC-155509",
+                "Puffed pufferfish can hurt the player while dying"
         })
         public boolean mc155509 = false;
 
         @Comment({
-            "Fixes MC-132878 - https://bugs.mojang.com/browse/MC/issues/MC-132878",
-            "Armor stands destroyed by explosions/lava/fire don't produce particles"
+                "Fixes MC-132878 - https://bugs.mojang.com/browse/MC/issues/MC-132878",
+                "Armor stands destroyed by explosions/lava/fire don't produce particles"
         })
         public boolean mc132878 = false;
 
         @Comment({
-            "Fixes MC-121706 - https://bugs.mojang.com/browse/MC/issues/MC-121706",
-            "Skeletons and illusioners aren't looking up / down at their target while strafing"
+                "Fixes MC-121706 - https://bugs.mojang.com/browse/MC/issues/MC-121706",
+                "Skeletons and illusioners aren't looking up / down at their target while strafing"
         })
         public boolean mc121706 = false;
 
         @Comment({
-            "Fixes MC-119754 - https://bugs.mojang.com/browse/MC/issues/MC-119754",
-            "Firework boosting on elytra continues in spectator mode"
+                "Fixes MC-119754 - https://bugs.mojang.com/browse/MC/issues/MC-119754",
+                "Firework boosting on elytra continues in spectator mode"
         })
         public boolean mc119754 = false;
 
         @Comment({
-            "Fixes MC-100991 - https://bugs.mojang.com/browse/MC/issues/MC-100991",
-            "Killing entities with a fishing rod doesn't count as a kill"
+                "Fixes MC-100991 - https://bugs.mojang.com/browse/MC/issues/MC-100991",
+                "Killing entities with a fishing rod doesn't count as a kill"
         })
         public boolean mc100991 = false;
 
         @Comment({
-            "Fixes MC-30391 - https://bugs.mojang.com/browse/MC/issues/MC-30391",
-            "Chickens, blazes and the wither emit particles when landing from a height, despite falling slowly"
+                "Fixes MC-30391 - https://bugs.mojang.com/browse/MC/issues/MC-30391",
+                "Chickens, blazes and the wither emit particles when landing from a height, despite falling slowly"
         })
         public boolean mc30391 = false;
 
         @Comment({
-            "Fixes MC-183990 - https://bugs.mojang.com/browse/MC/issues/MC-183990",
-            "Group AI of some mobs breaks when their target dies"
+                "Fixes MC-183990 - https://bugs.mojang.com/browse/MC/issues/MC-183990",
+                "Group AI of some mobs breaks when their target dies"
         })
         public boolean mc183990 = false;
 
         @Comment({
-            "Fixes MC-136249 - https://bugs.mojang.com/browse/MC/issues/MC-136249",
-            "Wearing boots enchanted with depth strider decreases the strength of the riptide enchantment"
+                "Fixes MC-136249 - https://bugs.mojang.com/browse/MC/issues/MC-136249",
+                "Wearing boots enchanted with depth strider decreases the strength of the riptide enchantment"
         })
         public boolean mc136249 = false;
 
         @Comment({
-            "Fixes MC-258859 - https://bugs.mojang.com/browse/MC/issues/MC-258859",
-            "Steep surface rule condition only works on the north and east faces of slopes"
+                "Fixes MC-258859 - https://bugs.mojang.com/browse/MC/issues/MC-258859",
+                "Steep surface rule condition only works on the north and east faces of slopes"
         })
         public boolean mc258859 = false;
     }
 
     @Comment({
-        "Enables better XP orb merging and removes the XP pickup delay",
-        "Can be very useful for heavy XP farms",
-        "This completely changes how orbs are merged, allowing for 1 single orb",
-        "to contain an infinite amount of experience and is fully collected instantly",
-        "rather than 1 xp per tick like with Vanilla. This is because we change the",
-        "criteria for orbs to be merged, and instead of increasing the count, we",
-        "increase the value of the orb. This way orbs are collected instantly, there",
-        "will be no \"ghost orbs\", and all xp merging is as efficient as possible"
+            "Enables better XP orb merging and removes the XP pickup delay",
+            "Can be very useful for heavy XP farms",
+            "This completely changes how orbs are merged, allowing for 1 single orb",
+            "to contain an infinite amount of experience and is fully collected instantly",
+            "rather than 1 xp per tick like with Vanilla. This is because we change the",
+            "criteria for orbs to be merged, and instead of increasing the count, we",
+            "increase the value of the orb. This way orbs are collected instantly, there",
+            "will be no \"ghost orbs\", and all xp merging is as efficient as possible"
     })
     public boolean fastOrbs = false;
 
     @Comment({
-        "Enables a regionized TPS-Bar implementation for Canvas",
-        "This function is per-player, with this as a global setting to disable it",
-        "To enable the tps-bar per-player, use the '/tpsbar' command"
+            "Enables a regionized TPS-Bar implementation for Canvas",
+            "This function is per-player, with this as a global setting to disable it",
+            "To enable the tps-bar per-player, use the '/tpsbar' command"
     })
     public boolean enableTpsBar = true;
 
     @Comment(value = {
-        "The default respawn dimension for the server.",
-        "This can assist for servers that need this changed to a different world",
-        "due to setup reasoning, like needing to send the players to the spawn world",
-        "or the wilderness world, etc.",
-        "This needs a NamespacedKey string pattern, like 'namespace:key' that points",
-        "to the dimension you want to use. The default is 'minecraft:overworld'",
-        "",
-        "This also applies to the end portal and nether portal, in replacement of the overworld",
-        "For example, if you set this to 'minecraft:the_nether', all entities entering the",
-        "end portal from the end will respawn in the nether rather than the overworld"
+            "The default respawn dimension for the server.",
+            "This can assist for servers that need this changed to a different world",
+            "due to setup reasoning, like needing to send the players to the spawn world",
+            "or the wilderness world, etc.",
+            "This needs a NamespacedKey string pattern, like 'namespace:key' that points",
+            "to the dimension you want to use. The default is 'minecraft:overworld'",
+            "",
+            "This also applies to the end portal and nether portal, in replacement of the overworld",
+            "For example, if you set this to 'minecraft:the_nether', all entities entering the",
+            "end portal from the end will respawn in the nether rather than the overworld"
     })
     @NamespacedKeyValidator.NamespacedKey
     public String defaultRespawnDimensionKey = "minecraft:overworld";
@@ -465,14 +474,14 @@ public class Config {
         @Comment("Whether to use 6 rows for the player ender chest, rather than the normal 3")
         public boolean enderChestSixRows = false;
         @Comment({
-            "Whether to use a permission based system for defining the size of ender chests per player",
-            "Valid permissions:",
-            " - purpur.enderchest.rows.six",
-            " - purpur.enderchest.rows.five",
-            " - purpur.enderchest.rows.four",
-            " - purpur.enderchest.rows.three",
-            " - purpur.enderchest.rows.two",
-            " - purpur.enderchest.rows.one"
+                "Whether to use a permission based system for defining the size of ender chests per player",
+                "Valid permissions:",
+                " - purpur.enderchest.rows.six",
+                " - purpur.enderchest.rows.five",
+                " - purpur.enderchest.rows.four",
+                " - purpur.enderchest.rows.three",
+                " - purpur.enderchest.rows.two",
+                " - purpur.enderchest.rows.one"
         })
         public boolean enderChestPermissionRows = false;
     }
@@ -488,8 +497,8 @@ public class Config {
 
     @NonNegativeNumericValueValidator.NonNegativeNumericValue
     @Comment({
-        "Defines a percentage of which the server will apply to the velocity applied to",
-        "item entities dropped on death. 0 means it has no velocity, 1 is default."
+            "Defines a percentage of which the server will apply to the velocity applied to",
+            "item entities dropped on death. 0 means it has no velocity, 1 is default."
     })
     public double itemEntitySpreadFactor = 1.0D;
 
@@ -503,25 +512,25 @@ public class Config {
         public int maxProjectileLoadsPerProjectile = 10;
 
         @Comment({
-            "Specify which projectiles should load chunks when moving.",
-            "Only works with projectiles thrown by players."
+                "Specify which projectiles should load chunks when moving.",
+                "Only works with projectiles thrown by players."
         })
         public List<String> loadChunks = new ArrayList<>();
     }
 
     @Comment({
-        "Optimizes the suffocation check by selectively skipping the check in a way",
-        "that still appears vanilla. This should be left enabled on most servers, but",
-        "is provided as a configuration option if the vanilla deviation is undesirable"
+            "Optimizes the suffocation check by selectively skipping the check in a way",
+            "that still appears vanilla. This should be left enabled on most servers, but",
+            "is provided as a configuration option if the vanilla deviation is undesirable"
     })
     public boolean enableSuffocationOptimization = false;
 
     @NonNegativeNumericValueValidator.NonNegativeNumericValue
     @Comment({
-        "Defines the inaccuracy of skeleton bow shots. 14 being vanilla,",
-        "100+ being absurdly stupidly and somewhat hilariously inaccurate",
-        "",
-        "The server difficulty is already taken into account upon calculation at runtime"
+            "Defines the inaccuracy of skeleton bow shots. 14 being vanilla,",
+            "100+ being absurdly stupidly and somewhat hilariously inaccurate",
+            "",
+            "The server difficulty is already taken into account upon calculation at runtime"
     })
     public double skeletonAimInaccuracy = 14.0D;
 
@@ -532,8 +541,8 @@ public class Config {
         public boolean disableAttackHitDelay = false;
 
         @Comment({
-            "Restores 1.8 pvp mechanics for sword blocking",
-            "WARNING: may not work for clients older than 1.21.4"
+                "Restores 1.8 pvp mechanics for sword blocking",
+                "WARNING: may not work for clients older than 1.21.4"
         })
         public boolean imitateSwordBlocking = false;
 
@@ -560,10 +569,10 @@ public class Config {
 
         @NonNegativeNumericValueValidator.NonNegativeNumericValue
         @Comment({
-            "When an entity is damaged, it has a certain amount of invulnerability",
-            "ticks applied to the entity until it can be damaged next. In Vanilla, this",
-            "is 10. This configuration allows you to change the amount of ticks of",
-            "invulnerability that is applied to the entity. 0 means invulnerability is not applied"
+                "When an entity is damaged, it has a certain amount of invulnerability",
+                "ticks applied to the entity until it can be damaged next. In Vanilla, this",
+                "is 10. This configuration allows you to change the amount of ticks of",
+                "invulnerability that is applied to the entity. 0 means invulnerability is not applied"
         })
         public int invulnerabilityTicks = 10;
 
@@ -578,8 +587,8 @@ public class Config {
     }
 
     @Comment({
-        "Use direct random implementation instead of delegating to Java's RandomGenerator.",
-        "This may improve performance but potentially changes RNG behavior."
+            "Use direct random implementation instead of delegating to Java's RandomGenerator.",
+            "This may improve performance but potentially changes RNG behavior."
     })
     public boolean useDirectRandomImpl = false;
 
@@ -632,8 +641,8 @@ public class Config {
         public boolean disableSprintParticles = false;
 
         @Comment({
-            "Disables entity fall particles",
-            "This is handled on the server-side, not the client, so this will cause visual deviations from Vanilla"
+                "Disables entity fall particles",
+                "This is handled on the server-side, not the client, so this will cause visual deviations from Vanilla"
         })
         public boolean disableFallParticles = false;
 
@@ -650,8 +659,8 @@ public class Config {
         public boolean disableBubbleColumnParticles = false;
 
         @Comment({
-            "Disables new combat particles",
-            "This is handled on the server-side, not the client, so this will cause visual deviations from Vanilla"
+                "Disables new combat particles",
+                "This is handled on the server-side, not the client, so this will cause visual deviations from Vanilla"
         })
         public boolean disableNewCombatParticles = false;
     }
@@ -666,19 +675,19 @@ public class Config {
     public boolean blacklistNonPlayerEntitiesFromEnteringGatewayPortals = false;
 
     @Comment({
-        "Controls how quickly waypoint updates fall off with distance between players.",
-        "Higher values mean updates stay frequent even across large distances, while lower values make them rarer.",
-        "4000.0 is a nice balance, far enough to avoid spamming updates, but not so far that things feel desynced.",
-        "",
-        "You can test this via https://www.desmos.com/calculator/k83i3ensfm where Y is the probability, S is the scale,",
-        "and D is the distance.",
-        "Note: teleportation forces waypoint updates, and ignores this formula."
+            "Controls how quickly waypoint updates fall off with distance between players.",
+            "Higher values mean updates stay frequent even across large distances, while lower values make them rarer.",
+            "4000.0 is a nice balance, far enough to avoid spamming updates, but not so far that things feel desynced.",
+            "",
+            "You can test this via https://www.desmos.com/calculator/k83i3ensfm where Y is the probability, S is the scale,",
+            "and D is the distance.",
+            "Note: teleportation forces waypoint updates, and ignores this formula."
     })
     public double waypointUpdateScale = 4000.0D;
 
     @Comment({
-        "Natural mob spawning increments for attempts to spawn mobs.",
-        "This can create \"pauses\" between trying to spawn mobs per-chunk"
+            "Natural mob spawning increments for attempts to spawn mobs.",
+            "This can create \"pauses\" between trying to spawn mobs per-chunk"
     })
     public SpawningIntervals naturalMobSpawnIncrements = new SpawningIntervals();
 
@@ -694,4 +703,48 @@ public class Config {
 
     @Comment("The server mod name displayed in server listings and client info")
     public String serverModName = io.papermc.paper.ServerBuildInfo.buildInfo().brandName();
+
+    // ==================== KAIIJU PORTED FEATURES ====================
+
+    @Comment({
+            "Linear region file format configuration.",
+            "Linear format uses ZSTD compression instead of ZLIB, saving ~50% disk space.",
+            "Ported from Kaiiju/Xymb's Linear Region Format."
+    })
+    public LinearFormat linearFormat = new LinearFormat();
+
+    public static class LinearFormat {
+        @Comment({ "The region file format to use.", "ANVIL - Standard Minecraft format",
+                "LINEAR - ZSTD compression (~50% smaller)" })
+        public RegionFileFormat format = RegionFileFormat.ANVIL;
+
+        @RangeValidator.Range(from = 1, to = 22, inclusive = true)
+        @Comment("ZSTD compression level for Linear format (1-22)")
+        public int compressionLevel = 1;
+
+        @PositiveNumericValueValidator.PositiveNumericValue
+        @Comment("How often (in seconds) to flush Linear region files to disk")
+        public int flushFrequency = 10;
+
+        @Comment("Maximum number of threads for Linear file flushing")
+        public int flushMaxThreads = 1;
+
+        @Comment("Whether to crash on broken symlink instead of logging a warning")
+        public boolean crashOnBrokenSymlink = true;
+    }
+
+    @Comment({ "Async pathfinding configuration.", "Moves entity pathfinding calculations off the main thread.",
+            "Ported from Kaiiju/Petal." })
+    public AsyncPathfinding asyncPathfinding = new AsyncPathfinding();
+
+    public static class AsyncPathfinding {
+        @Comment("Enable async pathfinding")
+        public boolean enabled = false;
+
+        @Comment("Maximum number of threads for async pathfinding (0 = auto)")
+        public int maxThreads = 0;
+
+        @Comment("Thread keepalive time in seconds")
+        public int keepalive = 60;
+    }
 }
