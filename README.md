@@ -1,3 +1,7 @@
+The features in the Kaiiju project have been added to canvas version 1.21.11.
+
+Note: The project was created with AI.
+
 ![title](./canvas_title.png)
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)  
