@@ -48,7 +48,7 @@
              try {
                  this.stopped = true;
                  this.stopServer();
-@@ -1684,9 +_,74 @@
+@@ -1682,9 +_,74 @@
                  scheduler.executeTick();
              }
          }
@@ -123,16 +123,18 @@
          this.tickChildren(hasTimeLeft, region); // Folia - region threading
          if (false && nanos - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) { // Folia - region threading
              this.lastServerStatus = nanos;
-@@ -1812,6 +_,19 @@
+@@ -1810,6 +_,21 @@
          //io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.DIALOG_CLICK_MANAGER.handleQueue(this.tickCount); // Paper // Folia - region threading - moved to global tick
          //this.getFunctions().tick(); // Folia - region threading - TODO Purge functions
          this.updateEffectiveRespawnData();
 +        // Canvas start - async save-all command
 +        region.canvas$saveAllTicket.consumeIfPresent(ticket -> {
 +            try {
-+                LOGGER.info("Saving chunks in region around chunk {} in world '{}'", region.region.getCenterChunk(), region.region.regioniser.world.getWorld().getName());
-+                region.region.regioniser.world.moonrise$getChunkTaskScheduler().chunkHolderManager.close(true, false, false, false, false, ticket.flush());
++                ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)region.world).moonrise$getChunkTaskScheduler().chunkHolderManager.saveAllChunksRegionised(
++                    ticket.flush(), false, false, false, false, true, false
++                );
 +                this.getPlayerList().saveAll();
++                LOGGER.info("Saved chunks in region around chunk {} in world '{}'", region.region.getCenterChunk(), region.region.regioniser.world.getWorld().getName());
 +            } catch (Throwable thrown) {
 +                ticket.exceptionPropagator().accept(thrown);
 +            } finally {
@@ -143,7 +145,7 @@
  
          // CraftBukkit start
          // Run tasks that are waiting on processing
-@@ -1930,11 +_,16 @@
+@@ -1928,11 +_,16 @@
       * Gets the ServerLevel by the given dimension.
       */
      public @Nullable ServerLevel getLevel(ResourceKey<Level> dimension) {
@@ -161,7 +163,7 @@
          Map<ResourceKey<Level>, ServerLevel> oldLevels = this.levels;
          Map<ResourceKey<Level>, ServerLevel> newLevels = Maps.newLinkedHashMap(oldLevels);
          newLevels.put(level.dimension(), level);
-@@ -1942,6 +_,7 @@
+@@ -1940,6 +_,7 @@
      }
  
      public void removeLevel(ServerLevel level) {
@@ -169,7 +171,7 @@
          Map<ResourceKey<Level>, ServerLevel> oldLevels = this.levels;
          Map<ResourceKey<Level>, ServerLevel> newLevels = Maps.newLinkedHashMap(oldLevels);
          newLevels.remove(level.dimension());
-@@ -1973,7 +_,7 @@
+@@ -1971,7 +_,7 @@
  
      @DontObfuscate
      public String getServerModName() {
@@ -178,7 +180,7 @@
      }
  
      public SystemReport fillSystemReport(SystemReport systemReport) {
-@@ -2279,6 +_,13 @@
+@@ -2277,6 +_,13 @@
          return 256;
      }
  

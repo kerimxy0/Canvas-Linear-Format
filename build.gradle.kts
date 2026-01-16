@@ -5,7 +5,7 @@ import io.papermc.paperweight.tasks.RebuildBaseGitPatches
 
 plugins {
     java
-    id("io.canvasmc.weaver.patcher") version "2.3.12-SNAPSHOT"
+    id("io.canvasmc.weaver.patcher") version "2.3.12"
     id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.1" apply false
 }
 
@@ -28,14 +28,12 @@ paperweight {
         patchRepo("paperApi") {
             upstreamPath = "paper-api"
             patchesDir = file("canvas-api/paper-patches")
-            additionalAts = file("build-data/paper-api.at")
             outputDir = file("paper-api")
         }
         patchDir("foliaApi") {
             upstreamPath = "folia-api"
             excludes = listOf("build.gradle.kts", "build.gradle.kts.patch", "paper-patches")
             patchesDir = file("canvas-api/folia-patches")
-            // additionalAts = file("build-data/folia-api.at")
             outputDir = file("folia-api")
         }
     }
@@ -116,4 +114,17 @@ subprojects {
 // patching scripts
 tasks.register("fixupMinecraftFilePatches") {
     dependsOn(":canvas-server:fixupMinecraftSourcePatches")
+}
+
+tasks.register("prepareJenkins") {
+    val libsDirPath = providers.provider {
+        layout.projectDirectory.file("canvas-server/build/libs").asFile
+    }
+
+    doLast {
+        val libsDir = libsDirPath.get()
+        if (libsDir.exists()) {
+            libsDir.deleteRecursively()
+        }
+    }
 }
